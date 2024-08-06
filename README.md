@@ -23,4 +23,4 @@ cp target/release/waybar-network-traffic ~/.config/waybar/scripts/waybar-network
 
 PR Welcome!
 
-Feel free to add percentage (to get nice color when bandwidth is saturated) or any other feature if it makes sense.
+Feel free to add percentage (to get nice color when bandwidth is saturated) or any other feature if it makes sense. Network interface filter, customized formatting, tooltip...
