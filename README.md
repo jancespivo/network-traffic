@@ -10,6 +10,8 @@ cp target/release/waybar-network-traffic ~/.config/waybar/scripts/waybar-network
 
 ## USAGE
 
+`~/.config/waybar/config`
+
 ```json
    "custom/network_traffic": {
         "exec": "~/.config/waybar/scripts/waybar-network-traffic",
