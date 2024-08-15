@@ -1,3 +1,5 @@
+use std::io::{Read, Seek};
+
 const SIZE_UNITS: [char; 4] = ['B', 'K', 'M', 'G'];
 
 fn human_readable(num_bytes: u64) -> String {
@@ -10,8 +12,11 @@ fn human_readable(num_bytes: u64) -> String {
 
 fn main() -> std::io::Result<()> {
     let (mut previous_receive, mut previous_transmit) = (0, 0);
+    let mut file = std::fs::File::open("/proc/net/dev")?;
     loop {
-        let file_contents = std::fs::read_to_string("/proc/net/dev")?;
+        let mut file_contents = String::new();
+        file.rewind().unwrap();
+        file.read_to_string(&mut file_contents).unwrap();
         let mut lines = file_contents.lines();
         let _ = lines.next();
         let _ = lines.next();
