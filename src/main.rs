@@ -29,9 +29,12 @@ fn main() -> std::io::Result<()> {
         if let Some((receive, transmit)) = lines.map(
             |line| {
                 let cols: Vec<_> = line.split_whitespace().collect();
-                (cols[1].parse::<u64>().unwrap(), cols[9].parse::<u64>().unwrap())
+                (cols[0], cols[1].parse::<u64>().unwrap(), cols[9].parse::<u64>().unwrap())
             }
-        ).reduce(|(previous_recieve, previous_transmit), (receive, transmit)| (previous_recieve + receive, previous_transmit + transmit)) {
+        )
+            .filter(|(iface, _, _)| *iface != "lo")
+            .map(|(_, receive, transmit)| (receive, transmit))
+            .reduce(|(previous_recieve, previous_transmit), (receive, transmit)| (previous_recieve + receive, previous_transmit + transmit)) {
             let (delta_receive, delta_transmit) = (receive - previous_receive, transmit - previous_transmit);
 
             let mut is_online = true;
@@ -43,7 +46,7 @@ fn main() -> std::io::Result<()> {
                 if let Err(_) = result {
                     is_online = false;
                 }
-                sleep_time =  sleep_time.checked_sub(time_elapsed).unwrap_or(std::time::Duration::ZERO)
+                sleep_time = sleep_time.checked_sub(time_elapsed).unwrap_or(std::time::Duration::ZERO)
             }
 
             let mut receive_txt = "X".to_string();
