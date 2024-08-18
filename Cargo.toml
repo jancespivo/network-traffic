@@ -8,3 +8,6 @@ codegen-units = 1
 lto = true
 panic = "abort"
 strip = true
+
+[dependencies]
+ping-rs = "0.1.2"
