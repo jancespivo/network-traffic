@@ -5,7 +5,7 @@ const SIZE_UNITS: [char; 4] = ['B', 'K', 'M', 'G'];
 fn human_readable(num_bytes: u64) -> String {
     let idx = core::cmp::min(
         num_bytes.checked_ilog10().unwrap_or(0) / 3,
-        SIZE_UNITS.len() as u32 - 1
+        SIZE_UNITS.len() as u32 - 1,
     );
     let rounder = 1000_u64.pow(idx);
     let rounded_bytes = (num_bytes as f64 / rounder as f64).round() as u64;
@@ -35,7 +35,13 @@ fn main() -> std::io::Result<()> {
                 (cols[0], cols[1].parse::<u64>().unwrap(), cols[9].parse::<u64>().unwrap())
             }
         )
-            .filter(|(iface, _, _)| *iface != "lo")
+            .filter(
+                |(iface_raw, _, _)|
+                    {
+                        let iface = iface_raw.strip_suffix(":").unwrap();
+                        std::path::Path::new(std::format!("/sys/class/net/{iface}/device").as_str()).exists()
+                    }
+            )
             .map(|(_, receive, transmit)| (receive, transmit))
             .reduce(|(previous_recieve, previous_transmit), (receive, transmit)| (previous_recieve + receive, previous_transmit + transmit)) {
             let (delta_receive, delta_transmit) = (receive - previous_receive, transmit - previous_transmit);
