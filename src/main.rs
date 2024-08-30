@@ -1,9 +1,20 @@
+use core::cmp::min;
+use std::format;
+use std::fs::File;
 use std::io::{Read, Seek};
+use std::net::{IpAddr, Ipv4Addr};
+use std::path::Path;
+use std::thread::sleep;
+use std::time;
 
 const SIZE_UNITS: [char; 4] = ['B', 'K', 'M', 'G'];
+const PING_DATA: [u8; 1] = [1];
+const PING_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8));
+const PING_TIMEOUT: time::Duration = time::Duration::from_secs(1);
+const PING_OPTIONS: ping_rs::PingOptions = ping_rs::PingOptions { ttl: 128, dont_fragment: true };
 
 fn human_readable(num_bytes: u64) -> String {
-    let idx = core::cmp::min(
+    let idx = min(
         num_bytes.checked_ilog10().unwrap_or(0) / 3,
         SIZE_UNITS.len() as u32 - 1,
     );
@@ -15,12 +26,8 @@ fn human_readable(num_bytes: u64) -> String {
 
 fn main() -> std::io::Result<()> {
     let (mut previous_receive, mut previous_transmit) = (0, 0);
-    let mut file = std::fs::File::open("/proc/net/dev")?;
+    let mut file = File::open("/proc/net/dev")?;
 
-    let addr = "8.8.8.8".parse().unwrap();
-    let data = [1];  // ping data
-    let timeout = std::time::Duration::from_secs(1);
-    let options = ping_rs::PingOptions { ttl: 128, dont_fragment: true };
     loop {
         let mut file_contents = String::new();
         file.rewind().unwrap();
@@ -28,7 +35,7 @@ fn main() -> std::io::Result<()> {
         let mut lines = file_contents.lines();
         let _ = lines.next();  // header line 1
         let _ = lines.next();  // header line 2
-        let mut sleep_time = std::time::Duration::from_secs(1);
+        let mut sleep_time = time::Duration::from_secs(1);
         if let Some((receive, transmit)) = lines.map(
             |line| {
                 let cols: Vec<_> = line.split_whitespace().collect();
@@ -39,7 +46,8 @@ fn main() -> std::io::Result<()> {
                 |(iface_raw, _, _)|
                     {
                         let iface = iface_raw.strip_suffix(":").unwrap();
-                        std::path::Path::new(std::format!("/sys/class/net/{iface}/device").as_str()).exists()
+                        // TODO caching might be faster than syscall
+                        Path::new(format!("/sys/class/net/{iface}/device").as_str()).exists()
                     }
             )
             .map(|(_, receive, transmit)| (receive, transmit))
@@ -49,13 +57,13 @@ fn main() -> std::io::Result<()> {
             let mut is_online = true;
             if delta_receive == 0 {
                 // possible broken connection
-                let start = std::time::Instant::now();
-                let result = ping_rs::send_ping(&addr, timeout, &data, Some(&options));
-                let time_elapsed = std::time::Instant::now() - start;
+                let start = time::Instant::now();
+                let result = ping_rs::send_ping(&PING_ADDR, PING_TIMEOUT, &PING_DATA, Some(&PING_OPTIONS));
+                let time_elapsed = start.elapsed();
                 if let Err(_) = result {
                     is_online = false;
                 }
-                sleep_time = sleep_time.checked_sub(time_elapsed).unwrap_or(std::time::Duration::ZERO)
+                sleep_time = sleep_time.checked_sub(time_elapsed).unwrap_or(time::Duration::ZERO)
             }
 
             let mut receive_txt = "X".to_string();
@@ -68,9 +76,8 @@ fn main() -> std::io::Result<()> {
 
             println!("{{\"text\": \"{:>4}⇣ {:>4}⇡\"}}", receive_txt, transmit_txt);
 
-            // TODO color formatting when disconnected
             (previous_receive, previous_transmit) = (receive, transmit);
         }
-        std::thread::sleep(sleep_time);
+        sleep(sleep_time);
     }
 }
